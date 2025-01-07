@@ -1,12 +1,12 @@
 mod core;
-mod user;
 mod event;
+mod user;
 
 use crate::core::app::AppConfig;
 use crate::core::db::create_pool;
+use axum::Router;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
-use axum::Router;
 
 #[derive(Clone, Debug)]
 struct AppState {
@@ -39,9 +39,14 @@ async fn main() {
 }
 
 fn create_routing(shared_state: Arc<AppState>) -> Router<Arc<AppState>> {
-    let app = Router::new().nest(
-        "/api/v1/users",
-        user::handlers::routing(shared_state.clone()),
-    );
+    let app = Router::new()
+        .nest(
+            "/api/v1/user",
+            user::handlers::routing(shared_state.clone()),
+        )
+        .nest(
+            "/api/v1/event",
+            event::handlers::routing(shared_state.clone()),
+        );
     app
 }

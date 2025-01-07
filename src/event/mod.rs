@@ -1,2 +1,2 @@
-mod handlers;
+pub(crate) mod handlers;
 mod dto;

@@ -1,15 +1,16 @@
 use crate::core::error::{format_error, internal_error};
 use crate::user::dto::{CreateUserDTO, User};
 use crate::AppState;
-use axum::extract::Path;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::{extract, Json, Router};
+use axum::{Json, Router};
 use std::sync::Arc;
 use axum::routing::{get, post};
+use sqlx::query_as;
 use uuid::Uuid;
 use crate::core::dto::ApiResponse;
 
-pub(crate) async fn create_user(
+async fn create(
     Json(payload): Json<CreateUserDTO>,
     state: Arc<AppState>,
 ) -> StatusCode {
@@ -23,10 +24,10 @@ pub(crate) async fn create_user(
     StatusCode::CREATED
 }
 
-async fn get_users(
-    state: extract::State<Arc<AppState>>,
+async fn get_all(
+    state: State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<User>>>, (StatusCode, Json<ApiResponse<()>>)> {
-    match sqlx::query_as::<_, User>("SELECT * FROM education_user")
+    match query_as::<_, User>("SELECT * FROM education_user")
         .fetch_all(&state.pool)
         .await
     {
@@ -57,7 +58,7 @@ async fn get_users(
     }
 }
 
-async fn get_user(
+async fn get_one(
     Path(uuid): Path<Uuid>,
     state: Arc<AppState>,
 ) -> Result<Json<User>, (StatusCode, String)> {
@@ -94,13 +95,13 @@ pub fn routing(shared_state: Arc<AppState>) -> Router<Arc<AppState>> {
             "/",
             post({
                 let shared_state = shared_state.clone();
-                move |body| create_user(body, shared_state.clone())
+                move |body| create(body, shared_state.clone())
             }),
         )
-        .route("/", get(get_users))
+        .route("/", get(get_all))
         .route("/{uuid}", get({
             let shared_state = shared_state.clone();
-            move |uuid| get_user(uuid, shared_state.clone())
+            move |uuid| get_one(uuid, shared_state.clone())
         }));
 
     app
