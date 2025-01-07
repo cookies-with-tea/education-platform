@@ -1,11 +1,12 @@
 mod core;
 mod user;
+mod event;
 
 use crate::core::app::AppConfig;
-use crate::core::create_routing;
 use crate::core::db::create_pool;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
+use axum::Router;
 
 #[derive(Clone, Debug)]
 struct AppState {
@@ -35,4 +36,12 @@ async fn main() {
     let _ = sqlx::migrate!().run(&pool.clone()).await;
 
     axum::serve(listener, app).await.unwrap();
+}
+
+fn create_routing(shared_state: Arc<AppState>) -> Router<Arc<AppState>> {
+    let app = Router::new().nest(
+        "/api/v1/users",
+        user::handlers::routing(shared_state.clone()),
+    );
+    app
 }

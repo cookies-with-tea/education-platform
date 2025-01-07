@@ -1,3 +1,2 @@
-mod model;
-pub(crate) mod routing;
-mod handlers;
+mod dto;
+pub mod handlers;

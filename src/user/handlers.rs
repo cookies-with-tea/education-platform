@@ -1,27 +1,13 @@
-use std::collections::HashMap;
-use crate::core::error::internal_error;
-use crate::user::model::{CreateUserDTO, User};
+use crate::core::error::{format_error, internal_error};
+use crate::user::dto::{CreateUserDTO, User};
 use crate::AppState;
 use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::{extract, Json};
+use axum::{extract, Json, Router};
 use std::sync::Arc;
+use axum::routing::{get, post};
 use uuid::Uuid;
-
-#[derive(serde_derive::Serialize)]
-pub struct ApiResponse<T> {
-    data: Option<T>,
-    errors: Option<HashMap<String, Vec<String>>>,
-    messages: Option<Vec<String>>,
-}
-
-fn format_error(key: &str, messages: Vec<String>) -> HashMap<String, Vec<String>> {
-    let mut errors = HashMap::new();
-
-    errors.insert(key.to_string(), messages);
-
-    errors
-}
+use crate::core::dto::ApiResponse;
 
 pub(crate) async fn create_user(
     Json(payload): Json<CreateUserDTO>,
@@ -37,7 +23,7 @@ pub(crate) async fn create_user(
     StatusCode::CREATED
 }
 
-pub(crate) async fn get_users(
+async fn get_users(
     state: extract::State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<User>>>, (StatusCode, Json<ApiResponse<()>>)> {
     match sqlx::query_as::<_, User>("SELECT * FROM education_user")
@@ -71,7 +57,7 @@ pub(crate) async fn get_users(
     }
 }
 
-pub(crate) async fn get_user(
+async fn get_user(
     Path(uuid): Path<Uuid>,
     state: Arc<AppState>,
 ) -> Result<Json<User>, (StatusCode, String)> {
@@ -99,3 +85,23 @@ pub(crate) async fn get_user(
 
     StatusCode::OK
 }*/
+
+pub fn routing(shared_state: Arc<AppState>) -> Router<Arc<AppState>> {
+    let mut app = Router::new();
+
+    app = app
+        .route(
+            "/",
+            post({
+                let shared_state = shared_state.clone();
+                move |body| create_user(body, shared_state.clone())
+            }),
+        )
+        .route("/", get(get_users))
+        .route("/{uuid}", get({
+            let shared_state = shared_state.clone();
+            move |uuid| get_user(uuid, shared_state.clone())
+        }));
+
+    app
+}
